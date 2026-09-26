@@ -6,15 +6,17 @@ export async function listCourses(req: Request, res: Response): Promise<void> {
     const { skillId, trackId, difficulty } = req.query;
 
     const where: any = {};
-    if (skillId) where.skillId = String(skillId);
+    if (skillId) where.taggedSkillId = String(skillId);
     if (trackId) where.trackId = String(trackId);
-    if (difficulty) where.difficulty = String(difficulty);
+    if (difficulty) where.difficultyLevel = String(difficulty).toUpperCase();
 
     const courses = await prisma.course.findMany({
       where,
       include: {
-        skill: true,
-        track: true
+        taggedSkill: true,
+        track: true,
+        prerequisiteCourse: true,
+        dependentCourses: true
       },
       orderBy: { createdAt: "desc" }
     });
@@ -31,8 +33,10 @@ export async function getCourseById(req: Request, res: Response): Promise<void> 
     const course = await prisma.course.findUnique({
       where: { id },
       include: {
-        skill: true,
-        track: true
+        taggedSkill: true,
+        track: true,
+        prerequisiteCourse: true,
+        dependentCourses: true
       }
     });
 

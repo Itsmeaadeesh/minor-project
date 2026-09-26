@@ -1,21 +1,10 @@
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
 generator client {
   provider = "prisma-client-js"
-}
-
-enum Role {
-  LEARNER
-  ADMIN
-}
-
-enum DifficultyLevel {
-  FOUNDATIONAL
-  INTERMEDIATE
-  ADVANCED
 }
 
 model User {
@@ -24,7 +13,7 @@ model User {
   email           String         @unique
   password        String?
   name            String
-  role            Role           @default(LEARNER)
+  role            String         @default("LEARNER") // LEARNER or ADMIN
   avatar          String?
   targetTrackId   String?        @map("target_track_id")
   targetTrack     Track?         @relation(fields: [targetTrackId], references: [id], onDelete: SetNull)
@@ -112,7 +101,7 @@ model Course {
   sourceLink             String?          @map("source_link")
   taggedSkillId          String           @map("tagged_skill_id")
   trackId                String?          @map("track_id")
-  difficultyLevel        DifficultyLevel  @default(FOUNDATIONAL) @map("difficulty_level")
+  difficultyLevel        String           @default("FOUNDATIONAL") @map("difficulty_level")
   durationHours          Int              @default(10) @map("duration_hours")
   provider               String           @default("Skill Setu Academy")
   rating                 Float            @default(4.8)
@@ -215,7 +204,7 @@ model ActivityLog {
   id          String   @id @default(uuid())
   actorId     String?  @map("actor_id")
   actionType  String   @map("action_type") // e.g. "AUTH_LOGIN", "ASSESSMENT_SUBMITTED", "QUIZ_ATTEMPT", "QUIZ_GENERATED", "RECOMMENDATION_RECALCULATED", "UPLOAD_PROCESSED", "SCORE_CHANGED"
-  metadata    String   @default("{}") // JSON string of action metadata (e.g. quiz title, score, gap changes, file name)
+  metadata    String   @default("{}") // JSON string of action metadata
   timestamp   DateTime @default(now())
 
   actor       User?    @relation("ActorActivity", fields: [actorId], references: [id], onDelete: SetNull)

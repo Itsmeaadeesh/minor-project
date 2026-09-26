@@ -1,4 +1,4 @@
-export type UserRole = "learner" | "admin";
+export type UserRole = "LEARNER" | "ADMIN" | "learner" | "admin";
 
 export interface User {
   id: string;
@@ -12,7 +12,7 @@ export interface User {
   hasOnboarded: boolean;
   createdAt: string;
   updatedAt: string;
-  skillProfiles?: SkillProfile[];
+  skillLevels?: LearnerSkillLevel[];
 }
 
 export interface Track {
@@ -22,7 +22,7 @@ export interface Track {
   description: string;
   icon: string;
   color?: string;
-  requirements?: TrackRequirement[];
+  trackSkills?: TrackSkill[];
   courses?: Course[];
   quizzes?: Quiz[];
   _count?: {
@@ -41,21 +41,21 @@ export interface Skill {
   icon: string;
 }
 
-export interface TrackRequirement {
+export interface TrackSkill {
   id: string;
   trackId: string;
   skillId: string;
-  requiredLevel: number;
+  requiredProficiencyLevel: number;
   skill: Skill;
 }
 
-export interface SkillProfile {
+export interface LearnerSkillLevel {
   id: string;
-  userId: string;
+  learnerId: string;
   skillId: string;
-  level: number; // 1 to 5
-  source: "quiz" | "self-rated" | string;
-  lastAssessedAt: string;
+  currentLevel: number; // 1 to 5
+  source: "quiz" | "self-rated" | "assessment" | string;
+  lastUpdated: string;
   skill: Skill;
 }
 
@@ -67,6 +67,7 @@ export interface SkillGapItem {
   currentLevel: number;
   requiredLevel: number;
   gap: number;
+  priorityWeight: number;
   tag: "foundational" | "intermediate" | "advanced";
   source: string;
   isMet: boolean;
@@ -90,15 +91,18 @@ export interface Course {
   id: string;
   title: string;
   description: string;
-  skillId: string;
+  sourceLink?: string | null;
+  taggedSkillId: string;
   trackId?: string | null;
-  difficulty: "foundational" | "intermediate" | "advanced" | string;
+  difficultyLevel: "FOUNDATIONAL" | "INTERMEDIATE" | "ADVANCED" | string;
   durationHours: number;
   provider: string;
   rating: number;
   thumbnail?: string | null;
-  url?: string | null;
-  skill?: Skill;
+  prerequisiteCourseId?: string | null;
+  prerequisiteCourse?: Course | null;
+  dependentCourses?: Course[];
+  taggedSkill?: Skill;
   track?: Track;
 }
 
@@ -106,13 +110,17 @@ export interface CoursePathItem {
   id: string;
   title: string;
   description: string;
-  skillId: string;
+  sourceLink?: string | null;
+  taggedSkillId: string;
   skillName: string;
-  difficulty: "foundational" | "intermediate" | "advanced";
+  difficultyLevel: "FOUNDATIONAL" | "INTERMEDIATE" | "ADVANCED" | string;
   durationHours: number;
   provider: string;
   rating: number;
+  prerequisiteCourseId?: string | null;
+  prerequisiteCourseTitle?: string | null;
   stepNumber: number;
+  status?: "not_started" | "in_progress" | "completed";
 }
 
 export interface LearningPathResult {
@@ -139,6 +147,7 @@ export interface Quiz {
   description?: string | null;
   trackId?: string | null;
   skillId?: string | null;
+  uploadId?: string | null;
   sourceFileUrl?: string | null;
   sourceFilename?: string | null;
   isBaseline: boolean;
@@ -166,14 +175,14 @@ export interface QuestionReviewItem {
 
 export interface QuizAttempt {
   id: string;
-  userId: string;
+  learnerId: string;
   quizId: string;
   score: number;
   totalQuestions: number;
   percentage: number;
   passed: boolean;
-  answersJson: string;
-  timestamp: string;
+  answers: string; // JSON string of QuestionReviewItem[]
+  attemptedAt: string;
   quiz: Quiz;
 }
 
@@ -185,9 +194,33 @@ export interface QuizAttemptResult {
   percentage: number;
   passed: boolean;
   questionsReview: QuestionReviewItem[];
-  updatedSkillLevel?: SkillProfile | null;
+  updatedSkillLevel?: LearnerSkillLevel | null;
   freshGaps?: GapAnalysisResult;
   freshPath?: LearningPathResult;
+}
+
+export interface ActivityLog {
+  id: string;
+  actorId?: string | null;
+  actorName: string;
+  actorEmail: string;
+  actorRole: string;
+  actorTrack?: string | null;
+  actionType:
+    | "AUTH_LOGIN"
+    | "AUTH_REGISTER"
+    | "TRACK_SELECTED"
+    | "PROFILE_UPDATED"
+    | "ASSESSMENT_SUBMITTED"
+    | "SKILL_SELF_RATED"
+    | "SCORE_CHANGED"
+    | "UPLOAD_PROCESSED"
+    | "QUIZ_GENERATED"
+    | "QUIZ_ATTEMPTED"
+    | "RECOMMENDATION_RECALCULATED"
+    | string;
+  metadata: Record<string, any>;
+  timestamp: string;
 }
 
 export interface AdminAnalytics {
@@ -196,9 +229,12 @@ export interface AdminAnalytics {
     totalTracks: number;
     totalQuizzes: number;
     totalAttempts: number;
+    totalUploads: number;
+    totalLogs: number;
     averagePlatformScore: number;
   };
   commonGaps: Array<{
+    skillId: string;
     skillName: string;
     category: string;
     trackName: string;
@@ -212,14 +248,19 @@ export interface AdminAnalytics {
     attemptsCount: number;
     averageScore: number;
   }>;
-  learners: Array<{
-    id: string;
-    name: string;
-    email: string;
-    targetTrack: string;
-    skillsAssessed: number;
-    quizzesTaken: number;
-    averageScore: number;
-    joinedAt: string;
-  }>;
+  recentLogs?: ActivityLog[];
+}
+
+export interface AdminLearnerItem {
+  id: string;
+  name: string;
+  email: string;
+  avatar?: string | null;
+  targetTrackId?: string | null;
+  targetTrack: string;
+  hasOnboarded: boolean;
+  skillsAssessed: number;
+  quizzesTaken: number;
+  averageScore: number;
+  createdAt: string;
 }

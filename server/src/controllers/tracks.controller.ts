@@ -5,7 +5,7 @@ export async function listTracks(req: Request, res: Response): Promise<void> {
   try {
     const tracks = await prisma.track.findMany({
       include: {
-        requirements: {
+        trackSkills: {
           include: { skill: true }
         },
         _count: {
@@ -27,14 +27,14 @@ export async function getTrackById(req: Request, res: Response): Promise<void> {
     const track = await prisma.track.findUnique({
       where: { id },
       include: {
-        requirements: {
+        trackSkills: {
           include: { skill: true }
         },
         courses: {
-          include: { skill: true }
+          include: { taggedSkill: true, prerequisiteCourse: true }
         },
         quizzes: {
-          include: { skill: true }
+          include: { skill: true, questions: true }
         }
       }
     });

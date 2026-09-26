@@ -2,7 +2,7 @@ import { Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import { createClient } from "@supabase/supabase-js";
 import prisma from "../prisma.js";
-import { AuthRequest, AuthenticatedUser } from "../types/index.js";
+import { AuthRequest, UserRole } from "../types/index.js";
 
 const JWT_SECRET = process.env.JWT_SECRET || "skill_setu_super_secret_jwt_key_2026_secure";
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -13,7 +13,7 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_URL.includes("[PROJECT-REF]")
   try {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   } catch (err) {
-    console.warn("Could not initialize Supabase client:", err);
+    console.warn("Could not initialize Supabase client in auth middleware:", err);
   }
 }
 
@@ -33,6 +33,11 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       if (!error && data?.user) {
         const supabaseUser = data.user;
         const email = supabaseUser.email || "";
+        const roleFromMetadata = (
+          supabaseUser.app_metadata?.role ||
+          supabaseUser.user_metadata?.role ||
+          "LEARNER"
+        ).toUpperCase() as UserRole;
 
         // Find or sync user in Prisma DB
         let dbUser = await prisma.user.findFirst({
@@ -50,7 +55,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
               supabaseUid: supabaseUser.id,
               email: email,
               name: supabaseUser.user_metadata?.name || email.split("@")[0] || "Learner",
-              role: (supabaseUser.user_metadata?.role as "learner" | "admin") || "learner",
+              role: roleFromMetadata === "ADMIN" ? "ADMIN" : "LEARNER",
               avatar: supabaseUser.user_metadata?.avatar_url || null
             }
           });
@@ -61,11 +66,13 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
           });
         }
 
+        const userRole = (dbUser.role?.toString().toUpperCase() === "ADMIN" ? "ADMIN" : "LEARNER") as UserRole;
+
         req.user = {
           id: dbUser.id,
           email: dbUser.email,
           name: dbUser.name,
-          role: (dbUser.role as "learner" | "admin") || "learner",
+          role: userRole,
           targetTrackId: dbUser.targetTrackId,
           hasOnboarded: dbUser.hasOnboarded,
           avatar: dbUser.avatar
@@ -75,7 +82,7 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       }
     }
 
-    // 2. Fallback to local JWT token (for demo logins & direct auth)
+    // 2. Local JWT token verification (supports seamless local auth, seeded admin, and demo users)
     const decoded = jwt.verify(token, JWT_SECRET) as { id: string; email?: string; role?: string };
     const dbUser = await prisma.user.findUnique({
       where: { id: decoded.id }
@@ -86,11 +93,13 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
       return;
     }
 
+    const userRole = (dbUser.role?.toString().toUpperCase() === "ADMIN" ? "ADMIN" : "LEARNER") as UserRole;
+
     req.user = {
       id: dbUser.id,
       email: dbUser.email,
       name: dbUser.name,
-      role: (dbUser.role as "learner" | "admin") || "learner",
+      role: userRole,
       targetTrackId: dbUser.targetTrackId,
       hasOnboarded: dbUser.hasOnboarded,
       avatar: dbUser.avatar
@@ -98,25 +107,28 @@ export async function authenticate(req: AuthRequest, res: Response, next: NextFu
 
     next();
   } catch (err: any) {
-    res.status(401).json({ error: "Invalid or expired token.", details: err.message });
+    res.status(401).json({ error: "Invalid or expired session token.", details: err.message });
   }
 }
 
-export function requireRole(allowedRole: "admin" | "learner") {
+export function requireRole(allowedRole: UserRole | "ADMIN" | "LEARNER") {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({ error: "Authentication required." });
       return;
     }
 
-    // Admins have access to everything
-    if (req.user.role === "admin" || req.user.role === allowedRole) {
+    const currentRole = req.user.role.toUpperCase();
+    const targetRole = allowedRole.toUpperCase();
+
+    // Admins have universal administrative access
+    if (currentRole === "ADMIN" || currentRole === targetRole) {
       next();
       return;
     }
 
     res.status(403).json({
-      error: `Access forbidden: requires '${allowedRole}' privileges. Your current role is '${req.user.role}'.`
+      error: `Access forbidden: requires '${targetRole}' privileges. Your current role is '${currentRole}'.`
     });
   };
 }

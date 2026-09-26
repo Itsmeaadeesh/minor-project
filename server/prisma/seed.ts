@@ -4,673 +4,660 @@ import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log("🌱 Starting Skill Setu Database Seeding...");
+  console.log("🌱 Starting Skill Setu Normalized Database Seeding...");
 
   // 1. Clean existing records in reverse dependency order
+  await prisma.activityLog.deleteMany();
   await prisma.quizAttempt.deleteMany();
   await prisma.quizQuestion.deleteMany();
   await prisma.quiz.deleteMany();
+  await prisma.upload.deleteMany();
+  await prisma.learningPath.deleteMany();
   await prisma.course.deleteMany();
-  await prisma.skillProfile.deleteMany();
-  await prisma.trackRequirement.deleteMany();
+  await prisma.learnerSkillLevel.deleteMany();
+  await prisma.trackSkill.deleteMany();
   await prisma.skill.deleteMany();
   await prisma.user.deleteMany();
   await prisma.track.deleteMany();
 
   const hashedPassword = await bcrypt.hash("Password123!", 10);
 
-  // 2. Seed Tracks
+  // 2. Seed Career Tracks
   const frontendTrack = await prisma.track.create({
     data: {
-      name: "Frontend Developer",
-      slug: "frontend-developer",
-      description: "Master modern UI development with React, TypeScript, responsive layout systems, and client-side architecture.",
-      icon: "Layout",
+      name: "Full Stack Web Engineering",
+      slug: "full-stack-web",
+      description: "Master enterprise web applications with React, TypeScript, Node.js, relational databases, and modern cloud deployment.",
+      icon: "Code",
       color: "indigo"
     }
   });
 
-  const dataAnalystTrack = await prisma.track.create({
+  const aiDataTrack = await prisma.track.create({
     data: {
-      name: "Data Analyst",
-      slug: "data-analyst",
-      description: "Extract insights, run complex SQL queries, build visualizations, and perform exploratory data analysis with Python.",
-      icon: "BarChart3",
-      color: "emerald"
+      name: "Data Science & AI Engineering",
+      slug: "ai-data-science",
+      description: "Extract insights, engineer predictive models, perform statistical inference, and build LLM-powered applications with Gemini API.",
+      icon: "Sparkles",
+      color: "purple"
     }
   });
 
-  const fullStackAITrack = await prisma.track.create({
+  const cloudDevOpsTrack = await prisma.track.create({
     data: {
-      name: "Full Stack & AI Engineer",
-      slug: "fullstack-ai-engineer",
-      description: "Build end-to-end intelligent applications with Node.js, Express, PostgreSQL, and LLM integrations via Gemini API.",
-      icon: "Cpu",
-      color: "purple"
+      name: "Cloud Infrastructure & DevOps",
+      slug: "cloud-devops",
+      description: "Design resilient distributed systems, master CI/CD pipelines, container orchestration with Kubernetes, and infrastructure as code.",
+      icon: "Cloud",
+      color: "emerald"
     }
   });
 
   // 3. Seed Skills
   const skillsData = [
-    // Frontend Track Skills
-    { name: "React.js", slug: "react-js", category: "Frontend", description: "Declarative UI, component lifecycle, hooks, and virtual DOM concepts.", icon: "Atom" },
-    { name: "TypeScript", slug: "typescript", category: "Frontend", description: "Static typing, generics, interfaces, and safe modern JavaScript development.", icon: "Code2" },
-    { name: "Tailwind & Modern CSS", slug: "tailwind-css", category: "Frontend", description: "Utility-first CSS, responsive layouts, CSS Grid, Flexbox, and modern pseudo-classes.", icon: "Palette" },
-    { name: "State Management", slug: "state-management", category: "Frontend", description: "React Context, Zustand, Redux Toolkit, and optimistic UI updates.", icon: "Layers" },
-    { name: "Web Performance & CWV", slug: "web-performance", category: "Frontend", description: "Core Web Vitals (LCP, INP, CLS), code splitting, caching, and Lighthouse audits.", icon: "Zap" },
+    // Web Track Skills
+    { name: "React & Next.js", slug: "react-nextjs", category: "Frontend", description: "Modern React architecture, hooks, server components, and state synchronization.", icon: "Atom" },
+    { name: "TypeScript", slug: "typescript", category: "Frontend", description: "Static typing, interfaces, generics, mapped types, and strict type safety.", icon: "Code2" },
+    { name: "Tailwind CSS & UI Design", slug: "tailwind-ui", category: "Frontend", description: "Responsive layouts, design systems, accessible semantic markup, and CSS Grid.", icon: "Palette" },
+    { name: "Node.js & Express API", slug: "nodejs-express", category: "Backend", description: "Asynchronous runtime, REST design, middleware authentication, and error handling.", icon: "Server" },
+    { name: "PostgreSQL & Prisma ORM", slug: "postgres-prisma", category: "Backend", description: "Normalized schemas, ACID transactions, migrations, and relational queries.", icon: "Database" },
 
-    // Data Analyst Skills
-    { name: "SQL & Relational DBs", slug: "sql-relational-dbs", category: "Data", description: "Complex joins, window functions, CTEs, indexing, and schema design.", icon: "Database" },
-    { name: "Python for Data Analysis", slug: "python-data", category: "Data", description: "Pandas, NumPy, data munging, and automated ETL data scripts.", icon: "Terminal" },
-    { name: "Data Visualization & BI", slug: "data-visualization", category: "Data", description: "Storytelling with charts, Recharts, Tableau/PowerBI, and metric design.", icon: "PieChart" },
-    { name: "Statistical Thinking", slug: "statistical-thinking", category: "Data", description: "A/B testing, hypothesis testing, probability distributions, and significance.", icon: "TrendingUp" },
-    { name: "Cloud Data Warehouses", slug: "cloud-data-warehouses", category: "Data", description: "BigQuery, Snowflake partitioning, clustering, and cost optimization.", icon: "Cloud" },
+    // AI & Data Skills
+    { name: "Python Data Analysis", slug: "python-data", category: "Data", description: "NumPy vectorization, Pandas dataframes, feature engineering, and data cleaning.", icon: "Terminal" },
+    { name: "SQL & Analytics", slug: "sql-analytics", category: "Data", description: "Complex joins, window functions, CTEs, aggregation, and query optimization.", icon: "BarChart" },
+    { name: "Machine Learning Foundations", slug: "machine-learning", category: "AI", description: "Supervised and unsupervised models, cross-validation, and metrics evaluation.", icon: "Cpu" },
+    { name: "Generative AI & LLM Systems", slug: "generative-ai", category: "AI", description: "Prompt engineering, Google Gemini API, RAG architectures, and structured schemas.", icon: "Sparkles" },
+    { name: "Data Visualization & BI", slug: "data-viz", category: "Data", description: "Dashboard storytelling, Recharts, metric design, and trend interpretation.", icon: "PieChart" },
 
-    // Full Stack & AI Skills
-    { name: "Node.js & Express", slug: "nodejs-express", category: "Backend", description: "Asynchronous I/O, REST routing, middleware pipelines, and error handling.", icon: "Server" },
-    { name: "PostgreSQL & Prisma", slug: "postgresql-prisma", category: "Backend", description: "Relational modeling, migrations, foreign key constraints, and transactions.", icon: "HardDrive" },
-    { name: "Generative AI & LLMs", slug: "generative-ai-llms", category: "AI", description: "Prompt engineering, Gemini API SDK, structured JSON outputs, and RAG pipelines.", icon: "Sparkles" },
-    { name: "REST & Web APIs", slug: "rest-web-apis", category: "Backend", description: "HTTP semantics, status codes, authentication, JWTs, and rate limiting.", icon: "Network" },
-    { name: "System Design Basics", slug: "system-design", category: "Architecture", description: "Scalability, caching strategies, load balancing, and microservices concepts.", icon: "Boxes" }
+    // Cloud & DevOps Skills
+    { name: "Docker Containerization", slug: "docker", category: "Cloud", description: "Multi-stage builds, container isolation, environment parity, and Docker Compose.", icon: "Box" },
+    { name: "Kubernetes Orchestration", slug: "kubernetes", category: "Cloud", description: "Pods, services, deployments, ingress, autoscaling, and statefulsets.", icon: "Boxes" },
+    { name: "CI/CD Automation", slug: "cicd", category: "Cloud", description: "GitHub Actions, continuous integration, automated testing, and zero-downtime rollouts.", icon: "RefreshCw" },
+    { name: "Linux & Shell Scripting", slug: "linux-shell", category: "Cloud", description: "System administration, process monitoring, bash automation, and networking.", icon: "HardDrive" }
   ];
 
-  const createdSkills: Record<string, any> = {};
+  const skillMap: Record<string, any> = {};
   for (const s of skillsData) {
     const created = await prisma.skill.create({ data: s });
-    createdSkills[s.slug] = created;
+    skillMap[s.slug] = created;
   }
 
-  // 4. Seed Track Requirements
-  // Frontend track requirements (target proficiency 1-5)
-  const frontendReqs = [
-    { skillSlug: "react-js", level: 4 },
-    { skillSlug: "typescript", level: 4 },
-    { skillSlug: "tailwind-css", level: 3 },
-    { skillSlug: "state-management", level: 3 },
-    { skillSlug: "web-performance", level: 3 }
+  // 4. Seed Track Skills (required proficiency 1 to 5)
+  // Full Stack Web Requirements
+  const webTrackSkills = [
+    { slug: "react-nextjs", level: 4 },
+    { slug: "typescript", level: 4 },
+    { slug: "tailwind-ui", level: 3 },
+    { slug: "nodejs-express", level: 4 },
+    { slug: "postgres-prisma", level: 4 }
   ];
-  for (const req of frontendReqs) {
-    await prisma.trackRequirement.create({
+  for (const r of webTrackSkills) {
+    await prisma.trackSkill.create({
       data: {
         trackId: frontendTrack.id,
-        skillId: createdSkills[req.skillSlug].id,
-        requiredLevel: req.level
+        skillId: skillMap[r.slug].id,
+        requiredProficiencyLevel: r.level
       }
     });
   }
 
-  // Data Analyst track requirements
-  const dataReqs = [
-    { skillSlug: "sql-relational-dbs", level: 5 },
-    { skillSlug: "python-data", level: 4 },
-    { skillSlug: "data-visualization", level: 4 },
-    { skillSlug: "statistical-thinking", level: 3 },
-    { skillSlug: "cloud-data-warehouses", level: 3 }
+  // AI & Data Requirements
+  const aiTrackSkills = [
+    { slug: "python-data", level: 5 },
+    { slug: "sql-analytics", level: 4 },
+    { slug: "machine-learning", level: 4 },
+    { slug: "generative-ai", level: 4 },
+    { slug: "data-viz", level: 3 }
   ];
-  for (const req of dataReqs) {
-    await prisma.trackRequirement.create({
+  for (const r of aiTrackSkills) {
+    await prisma.trackSkill.create({
       data: {
-        trackId: dataAnalystTrack.id,
-        skillId: createdSkills[req.skillSlug].id,
-        requiredLevel: req.level
+        trackId: aiDataTrack.id,
+        skillId: skillMap[r.slug].id,
+        requiredProficiencyLevel: r.level
       }
     });
   }
 
-  // Full Stack AI track requirements
-  const aiReqs = [
-    { skillSlug: "nodejs-express", level: 4 },
-    { skillSlug: "postgresql-prisma", level: 4 },
-    { skillSlug: "generative-ai-llms", level: 4 },
-    { skillSlug: "rest-web-apis", level: 4 },
-    { skillSlug: "react-js", level: 3 }
+  // Cloud & DevOps Requirements
+  const cloudTrackSkills = [
+    { slug: "linux-shell", level: 4 },
+    { slug: "docker", level: 4 },
+    { slug: "kubernetes", level: 4 },
+    { slug: "cicd", level: 4 }
   ];
-  for (const req of aiReqs) {
-    await prisma.trackRequirement.create({
+  for (const r of cloudTrackSkills) {
+    await prisma.trackSkill.create({
       data: {
-        trackId: fullStackAITrack.id,
-        skillId: createdSkills[req.skillSlug].id,
-        requiredLevel: req.level
+        trackId: cloudDevOpsTrack.id,
+        skillId: skillMap[r.slug].id,
+        requiredProficiencyLevel: r.level
       }
     });
   }
 
-  // 5. Seed Courses (Foundational, Intermediate, Advanced)
-  const coursesData = [
-    // React courses
-    {
-      title: "React Fundamentals & Component Architecture",
-      description: "Master JSX, component decomposition, props, state, and unidirectional data flow from scratch.",
-      skillSlug: "react-js",
+  // 5. Seed Courses with Real Prerequisite Chains (Foundational -> Intermediate -> Advanced)
+  // React Chain
+  const c1_react_found = await prisma.course.create({
+    data: {
+      title: "Foundations of React & Component State",
+      description: "Understand declarative UI, JSX compilation, props vs state, and functional component decomposition.",
+      sourceLink: "https://react.dev/learn",
+      taggedSkillId: skillMap["react-nextjs"].id,
       trackId: frontendTrack.id,
-      difficulty: "foundational",
+      difficultyLevel: "FOUNDATIONAL",
       durationHours: 8,
       provider: "Skill Setu Academy",
       rating: 4.8
-    },
-    {
-      title: "Advanced React Hooks & Custom Hook Patterns",
-      description: "Deep dive into useEffect pitfalls, useMemo/useCallback optimization, and reusable custom hook abstractions.",
-      skillSlug: "react-js",
+    }
+  });
+
+  const c2_react_inter = await prisma.course.create({
+    data: {
+      title: "Advanced React Hooks & State Management",
+      description: "Deep dive into useEffect dependency arrays, custom hooks, Context API, and state caching patterns.",
+      sourceLink: "https://react.dev/learn/reusing-logic-with-custom-hooks",
+      taggedSkillId: skillMap["react-nextjs"].id,
       trackId: frontendTrack.id,
-      difficulty: "intermediate",
+      difficultyLevel: "INTERMEDIATE",
       durationHours: 12,
       provider: "Skill Setu Academy",
-      rating: 4.9
-    },
-    {
-      title: "Production React 19 Architecture & Server Actions",
-      description: "Scale large enterprise React applications with React 19 hooks, Suspense, and resilient error boundaries.",
-      skillSlug: "react-js",
-      trackId: frontendTrack.id,
-      difficulty: "advanced",
-      durationHours: 14,
-      provider: "Skill Setu Academy",
-      rating: 4.9
-    },
+      rating: 4.9,
+      prerequisiteCourseId: c1_react_found.id
+    }
+  });
 
-    // TypeScript courses
-    {
-      title: "TypeScript Essentials for JavaScript Developers",
-      description: "Understand static types, type inference, union types, and compile-time guarantees.",
-      skillSlug: "typescript",
+  const c3_react_adv = await prisma.course.create({
+    data: {
+      title: "Full-Stack Next.js 15 & Server Components",
+      description: "Build enterprise web apps with React Server Components (RSC), Server Actions, and streaming SSR.",
+      sourceLink: "https://nextjs.org/docs",
+      taggedSkillId: skillMap["react-nextjs"].id,
       trackId: frontendTrack.id,
-      difficulty: "foundational",
+      difficultyLevel: "ADVANCED",
+      durationHours: 16,
+      provider: "Skill Setu Academy",
+      rating: 5.0,
+      prerequisiteCourseId: c2_react_inter.id
+    }
+  });
+
+  // TypeScript Chain
+  const c1_ts_found = await prisma.course.create({
+    data: {
+      title: "TypeScript Syntax & Fundamental Types",
+      description: "Primitives, interfaces, type aliases, union types, and compile-time verification in modern web projects.",
+      sourceLink: "https://www.typescriptlang.org/docs/handbook/intro.html",
+      taggedSkillId: skillMap["typescript"].id,
+      trackId: frontendTrack.id,
+      difficultyLevel: "FOUNDATIONAL",
       durationHours: 6,
       provider: "CodeCraft Institute",
       rating: 4.7
-    },
-    {
-      title: "Intermediate TypeScript: Generics & Utility Types",
-      description: "Learn generic functions, mapped types, Pick, Omit, Partial, and strict compiler configurations.",
-      skillSlug: "typescript",
+    }
+  });
+
+  const c2_ts_inter = await prisma.course.create({
+    data: {
+      title: "Generics, Narrowing & Utility Types in TypeScript",
+      description: "Master generic functions and classes, Pick, Omit, Record, Partial, and Discriminated Unions.",
+      sourceLink: "https://www.typescriptlang.org/docs/handbook/2/generics.html",
+      taggedSkillId: skillMap["typescript"].id,
       trackId: frontendTrack.id,
-      difficulty: "intermediate",
+      difficultyLevel: "INTERMEDIATE",
       durationHours: 10,
       provider: "CodeCraft Institute",
-      rating: 4.8
-    },
-    {
-      title: "Advanced TypeScript: Type Gymnastics & ASTs",
-      description: "Conditional types, template literal types, infer keyword, and building rock-solid SDK APIs.",
-      skillSlug: "typescript",
-      trackId: frontendTrack.id,
-      difficulty: "advanced",
-      durationHours: 12,
-      provider: "CodeCraft Institute",
-      rating: 4.9
-    },
+      rating: 4.8,
+      prerequisiteCourseId: c1_ts_found.id
+    }
+  });
 
-    // Tailwind & CSS
-    {
-      title: "Modern CSS & Responsive Tailwind Mastery",
-      description: "Rapidly build responsive, polished layouts with Flexbox, CSS Grid, and Tailwind utility classes.",
-      skillSlug: "tailwind-css",
+  // Tailwind CSS
+  await prisma.course.create({
+    data: {
+      title: "Modern UI Engineering with Tailwind CSS & Flex/Grid",
+      description: "Rapidly craft clean responsive interfaces, theme tokens, and component abstractions without CSS bloat.",
+      sourceLink: "https://tailwindcss.com/docs",
+      taggedSkillId: skillMap["tailwind-ui"].id,
       trackId: frontendTrack.id,
-      difficulty: "foundational",
+      difficultyLevel: "FOUNDATIONAL",
       durationHours: 6,
       provider: "Skill Setu Academy",
       rating: 4.7
-    },
-    {
-      title: "Advanced Design Systems & Tailwind Theming",
-      description: "Build reusable UI component systems with dark mode, animations, and container queries.",
-      skillSlug: "tailwind-css",
+    }
+  });
+
+  // Node & Express Chain
+  const c1_node_found = await prisma.course.create({
+    data: {
+      title: "Node.js Runtime & Express Server Fundamentals",
+      description: "Event loop, asynchronous I/O, middleware request pipelines, REST routing, and JSON serialization.",
+      sourceLink: "https://nodejs.org/en/docs",
+      taggedSkillId: skillMap["nodejs-express"].id,
       trackId: frontendTrack.id,
-      difficulty: "intermediate",
+      difficultyLevel: "FOUNDATIONAL",
       durationHours: 8,
-      provider: "Skill Setu Academy",
-      rating: 4.8
-    },
-
-    // State Management
-    {
-      title: "State Management with React Context & Zustand",
-      description: "Clean state management without boilerplate using Zustand stores and React Context best practices.",
-      skillSlug: "state-management",
-      trackId: frontendTrack.id,
-      difficulty: "intermediate",
-      durationHours: 7,
-      provider: "Frontend Masters",
-      rating: 4.8
-    },
-
-    // Web Performance
-    {
-      title: "Core Web Vitals & Web Performance Optimization",
-      description: "Optimize Largest Contentful Paint (LCP), Interaction to Next Paint (INP), and bundle sizes.",
-      skillSlug: "web-performance",
-      trackId: frontendTrack.id,
-      difficulty: "intermediate",
-      durationHours: 9,
-      provider: "Google Web Dev Guild",
-      rating: 4.9
-    },
-
-    // SQL Courses
-    {
-      title: "SQL Zero to Hero: Queries, Joins & Aggregations",
-      description: "Learn relational database fundamentals, filtering, grouping, and inner/outer joins with real data.",
-      skillSlug: "sql-relational-dbs",
-      trackId: dataAnalystTrack.id,
-      difficulty: "foundational",
-      durationHours: 8,
-      provider: "DataCamp",
-      rating: 4.8
-    },
-    {
-      title: "Intermediate SQL: Window Functions & Subqueries",
-      description: "Master RANK(), DENSE_RANK(), LAG(), LEAD(), partition windows, and Common Table Expressions (CTEs).",
-      skillSlug: "sql-relational-dbs",
-      trackId: dataAnalystTrack.id,
-      difficulty: "intermediate",
-      durationHours: 10,
-      provider: "DataCamp",
-      rating: 4.9
-    },
-    {
-      title: "Advanced SQL Query Optimization & Performance Tuning",
-      description: "Analyze query execution plans, indexing strategies, partition pruning, and schema optimization.",
-      skillSlug: "sql-relational-dbs",
-      trackId: dataAnalystTrack.id,
-      difficulty: "advanced",
-      durationHours: 12,
-      provider: "PostgreSQL Guild",
-      rating: 4.9
-    },
-
-    // Python for Data
-    {
-      title: "Python Data Analysis with Pandas & NumPy",
-      description: "Data frames, series, filtering, grouping, merging, handling missing values, and exploratory analysis.",
-      skillSlug: "python-data",
-      trackId: dataAnalystTrack.id,
-      difficulty: "foundational",
-      durationHours: 10,
-      provider: "Skill Setu Academy",
-      rating: 4.8
-    },
-    {
-      title: "Data Visualization & Dashboard Storytelling",
-      description: "Transform raw metrics into compelling visual narratives using Recharts, Matplotlib, and Seaborn.",
-      skillSlug: "data-visualization",
-      trackId: dataAnalystTrack.id,
-      difficulty: "intermediate",
-      durationHours: 8,
-      provider: "Skill Setu Academy",
-      rating: 4.8
-    },
-
-    // Node & Express
-    {
-      title: "Node.js & Express RESTful API Development",
-      description: "Build production-ready REST APIs with robust routing, middleware pipelines, and error handling.",
-      skillSlug: "nodejs-express",
-      trackId: fullStackAITrack.id,
-      difficulty: "foundational",
-      durationHours: 9,
       provider: "Backend Guild",
       rating: 4.8
-    },
-    {
-      title: "PostgreSQL with Prisma ORM in Production",
-      description: "Design relational schemas, execute database migrations, handle foreign keys, and perform type-safe queries.",
-      skillSlug: "postgresql-prisma",
-      trackId: fullStackAITrack.id,
-      difficulty: "intermediate",
-      durationHours: 8,
-      provider: "Prisma Official",
-      rating: 4.9
-    },
-    {
-      title: "Building Generative AI Applications with Google Gemini",
-      description: "Harness Gemini 1.5/2.0 Flash with structured JSON schemas, multimodal prompts, and OCR integrations.",
-      skillSlug: "generative-ai-llms",
-      trackId: fullStackAITrack.id,
-      difficulty: "intermediate",
-      durationHours: 10,
-      provider: "Google Developer Student Club",
-      rating: 5.0
     }
-  ];
+  });
 
-  for (const c of coursesData) {
-    await prisma.course.create({
-      data: {
-        title: c.title,
-        description: c.description,
-        skillId: createdSkills[c.skillSlug].id,
-        trackId: c.trackId,
-        difficulty: c.difficulty,
-        durationHours: c.durationHours,
-        provider: c.provider,
-        rating: c.rating
-      }
-    });
-  }
+  const c2_node_inter = await prisma.course.create({
+    data: {
+      title: "Production REST Architecture & JWT Security",
+      description: "Robust input validation with Zod, JWT authorization, rate limiting, and centralized error handling.",
+      sourceLink: "https://expressjs.com/en/advanced/best-practice-security.html",
+      taggedSkillId: skillMap["nodejs-express"].id,
+      trackId: frontendTrack.id,
+      difficultyLevel: "INTERMEDIATE",
+      durationHours: 12,
+      provider: "Backend Guild",
+      rating: 4.9,
+      prerequisiteCourseId: c1_node_found.id
+    }
+  });
 
-  // 6. Seed Baseline Quizzes with Questions
-  const reactQuiz = await prisma.quiz.create({
+  // PostgreSQL & Prisma Chain
+  const c1_db_found = await prisma.course.create({
+    data: {
+      title: "Relational Modeling with PostgreSQL & Supabase",
+      description: "Tables, primary/foreign keys, one-to-many and many-to-many associations, constraints, and indexes.",
+      sourceLink: "https://supabase.com/docs/guides/database",
+      taggedSkillId: skillMap["postgres-prisma"].id,
+      trackId: frontendTrack.id,
+      difficultyLevel: "FOUNDATIONAL",
+      durationHours: 8,
+      provider: "Database Mastery",
+      rating: 4.8
+    }
+  });
+
+  await prisma.course.create({
+    data: {
+      title: "Type-Safe Database Access with Prisma ORM",
+      description: "Prisma schema design, automated migrations, declarative transactions, and relationship querying.",
+      sourceLink: "https://www.prisma.io/docs",
+      taggedSkillId: skillMap["postgres-prisma"].id,
+      trackId: frontendTrack.id,
+      difficultyLevel: "INTERMEDIATE",
+      durationHours: 10,
+      provider: "Prisma Guild",
+      rating: 4.9,
+      prerequisiteCourseId: c1_db_found.id
+    }
+  });
+
+  // AI & Data Courses
+  const c1_py_found = await prisma.course.create({
+    data: {
+      title: "Python Data Analysis with Pandas & NumPy",
+      description: "Vectorized arrays, dataframe filtering, group-by aggregations, missing values, and time-series data.",
+      sourceLink: "https://pandas.pydata.org/docs/",
+      taggedSkillId: skillMap["python-data"].id,
+      trackId: aiDataTrack.id,
+      difficultyLevel: "FOUNDATIONAL",
+      durationHours: 10,
+      provider: "DataCamp",
+      rating: 4.8
+    }
+  });
+
+  const c1_ml_inter = await prisma.course.create({
+    data: {
+      title: "Applied Machine Learning & Model Evaluation",
+      description: "Scikit-Learn estimators, cross-validation, regression, classification, precision/recall, and ROC-AUC.",
+      sourceLink: "https://scikit-learn.org/stable/",
+      taggedSkillId: skillMap["machine-learning"].id,
+      trackId: aiDataTrack.id,
+      difficultyLevel: "INTERMEDIATE",
+      durationHours: 14,
+      provider: "AI Institute",
+      rating: 4.9,
+      prerequisiteCourseId: c1_py_found.id
+    }
+  });
+
+  await prisma.course.create({
+    data: {
+      title: "Building Production Generative AI Apps with Google Gemini",
+      description: "Multimodal prompts, structured JSON schema outputs, function calling, and RAG pipelines.",
+      sourceLink: "https://ai.google.dev/gemini-api/docs",
+      taggedSkillId: skillMap["generative-ai"].id,
+      trackId: aiDataTrack.id,
+      difficultyLevel: "ADVANCED",
+      durationHours: 14,
+      provider: "Google Developer Student Club",
+      rating: 5.0,
+      prerequisiteCourseId: c1_ml_inter.id
+    }
+  });
+
+  // 6. Seed Baseline Quizzes & Questions
+  const reactBaselineQuiz = await prisma.quiz.create({
     data: {
       title: "React.js Core Baseline Assessment",
-      description: "Diagnostic quiz testing core React principles: components, props, state, and rendering lifecycle.",
+      description: "Diagnostic assessment testing Virtual DOM diffing, component lifecycle, hooks, and immutable state updates.",
       trackId: frontendTrack.id,
-      skillId: createdSkills["react-js"].id,
+      skillId: skillMap["react-nextjs"].id,
       isBaseline: true,
-      timeLimitMinutes: 10
+      generatedFrom: "baseline",
+      timeLimitMinutes: 12
     }
   });
 
-  const reactQuestions = [
-    {
-      question: "What is the primary reason React uses a Virtual DOM?",
-      options: JSON.stringify([
-        "To allow direct access to server-side memory",
-        "To minimize expensive real DOM mutations via diffing and batching",
-        "To replace JavaScript with compiled C++ code",
-        "To prevent any CSS from being loaded in the browser"
-      ]),
-      correct_option: 1,
-      explanation: "React maintains a lightweight in-memory representation of the UI (Virtual DOM) and diffs it with the previous snapshot, updating only modified nodes in the real DOM for high rendering performance.",
-      difficulty: "foundational"
-    },
-    {
-      question: "Which hook should be used to run side effects like fetching data or setting up subscriptions?",
-      options: JSON.stringify([
-        "useReducer",
-        "useCallback",
-        "useEffect",
-        "useMemo"
-      ]),
-      correct_option: 2,
-      explanation: "useEffect is specifically designed for side effects, running after render and supporting dependency tracking and optional cleanup callbacks.",
-      difficulty: "foundational"
-    },
-    {
-      question: "Why should you never mutate state directly (e.g. state.count = 5) in React?",
-      options: JSON.stringify([
-        "Direct mutation crashes the JavaScript runtime permanently",
-        "React uses object reference equality to detect state changes and schedule re-renders",
-        "Direct mutation deletes the browser cache",
-        "React does not allow variables with numerical values"
-      ]),
-      correct_option: 1,
-      explanation: "React relies on immutability to determine whether a component needs to re-render via shallow reference comparison (prev !== next). Direct mutation fails this check and leads to missed renders.",
-      difficulty: "intermediate"
-    },
-    {
-      question: "What does useMemo return in a functional component?",
-      options: JSON.stringify([
-        "A memoized callback function",
-        "A memoized computed value that only recalculates when dependencies change",
-        "A new DOM element reference",
-        "An asynchronous promise wrapper"
-      ]),
-      correct_option: 1,
-      explanation: "useMemo caches the result of an expensive calculation between renders, only re-evaluating when one of the specified dependencies has changed.",
-      difficulty: "intermediate"
-    }
-  ];
-
-  for (const q of reactQuestions) {
-    await prisma.quizQuestion.create({
-      data: {
-        quizId: reactQuiz.id,
-        question: q.question,
-        options: q.options,
-        correct_option: q.correct_option,
-        explanation: q.explanation,
-        difficulty: q.difficulty
+  await prisma.quizQuestion.createMany({
+    data: [
+      {
+        quizId: reactBaselineQuiz.id,
+        questionText: "Why does React utilize an in-memory Virtual DOM instead of writing directly to the browser DOM?",
+        options: JSON.stringify([
+          "To allow web browsers to execute native x86 machine instructions",
+          "To minimize expensive DOM reflows and repaints by batching updates and reconciling differences",
+          "To eliminate the need for JavaScript in the client application",
+          "To bypass all CSS stylesheets and HTML rendering engines"
+        ]),
+        correctAnswer: 1,
+        explanation: "Manipulating the real browser DOM triggers expensive style recalculations, reflows, and repaints. React's Virtual DOM compares lightweight JavaScript tree snapshots and applies only minimal changes to the real DOM.",
+        difficulty: "foundational"
+      },
+      {
+        quizId: reactBaselineQuiz.id,
+        questionText: "What occurs if you directly mutate React component state (e.g., `state.count = 5`) instead of invoking the setter function?",
+        options: JSON.stringify([
+          "The browser executes an unhandled memory exception and halts",
+          "React skips re-rendering because shallow reference comparison detects no pointer change",
+          "The state value is permanently deleted from the JavaScript execution context",
+          "React automatically rolls back the entire application to the previous commit"
+        ]),
+        correctAnswer: 1,
+        explanation: "React relies on immutability and shallow reference comparison (`Object.is`) to detect when state has changed. Direct mutation mutates the existing object in place, so the reference comparison indicates no change and no re-render is triggered.",
+        difficulty: "intermediate"
+      },
+      {
+        quizId: reactBaselineQuiz.id,
+        questionText: "When should the `useCallback` hook be utilized in a React functional component?",
+        options: JSON.stringify([
+          "To run synchronous HTTP AJAX network requests before the component mounts",
+          "To memoize a callback function reference across re-renders when passing it to memoized child components",
+          "To automatically convert functional components into legacy class components",
+          "To encrypt client-side cookies before sending them to the backend server"
+        ]),
+        correctAnswer: 1,
+        explanation: "`useCallback` returns a memoized version of the callback that only changes if one of the dependencies has changed. It prevents unnecessary re-renders of memoized child components (`React.memo`) that rely on reference equality.",
+        difficulty: "intermediate"
+      },
+      {
+        quizId: reactBaselineQuiz.id,
+        questionText: "What is the primary benefit of React Server Components (RSC) in Next.js?",
+        options: JSON.stringify([
+          "They send zero JavaScript bundle code for server-only components to the client, improving initial page load",
+          "They disable all CSS animations across mobile devices",
+          "They force all state to be stored in localStorage rather than memory",
+          "They replace the Node.js runtime with Apache Tomcat"
+        ]),
+        correctAnswer: 0,
+        explanation: "React Server Components execute entirely on the server and stream rendered HTML/JSON to the client without sending their component dependencies or libraries in the client JavaScript bundle, dramatically reducing bundle size and improving First Contentful Paint.",
+        difficulty: "advanced"
       }
-    });
-  }
+    ]
+  });
 
   // TypeScript Baseline Quiz
-  const tsQuiz = await prisma.quiz.create({
+  const tsBaselineQuiz = await prisma.quiz.create({
     data: {
       title: "TypeScript Diagnostic Quiz",
-      description: "Assess understanding of TypeScript type annotations, interfaces, generics, and union types.",
+      description: "Assess understanding of static types, union types, type narrowing, interfaces, and generics.",
       trackId: frontendTrack.id,
-      skillId: createdSkills["typescript"].id,
+      skillId: skillMap["typescript"].id,
       isBaseline: true,
+      generatedFrom: "baseline",
       timeLimitMinutes: 10
     }
   });
 
-  const tsQuestions = [
-    {
-      question: "What is the difference between 'unknown' and 'any' in TypeScript?",
-      options: JSON.stringify([
-        "There is no difference; they are exact aliases",
-        "'unknown' is type-safe because you must perform type narrowing before performing operations on it",
-        "'any' can only hold primitive numbers and booleans",
-        "'unknown' causes a compiler error if imported in Node.js"
-      ]),
-      correct_option: 1,
-      explanation: "'unknown' is the type-safe counterpart of 'any'. Anything is assignable to 'unknown', but 'unknown' cannot be operated upon or assigned to another type without narrowing or type assertion.",
-      difficulty: "intermediate"
-    },
-    {
-      question: "Which utility type creates a new type by picking a set of keys from an existing type T?",
-      options: JSON.stringify([
-        "Omit<T, K>",
-        "Extract<T, U>",
-        "Pick<T, K>",
-        "Record<K, T>"
-      ]),
-      correct_option: 2,
-      explanation: "Pick<T, K> constructs a type by picking the set of properties K from type T.",
-      difficulty: "foundational"
-    },
-    {
-      question: "What is a TypeScript Generic used for?",
-      options: JSON.stringify([
-        "To write reusable code that can work across a variety of types while maintaining type safety",
-        "To convert TypeScript code into WebAssembly",
-        "To allow HTML syntax inside JSON files",
-        "To eliminate all runtime error logging"
-      ]),
-      correct_option: 0,
-      explanation: "Generics allow developers to author components and functions that accept type parameters, ensuring reusability without sacrificing static type safety.",
-      difficulty: "intermediate"
-    }
-  ];
-
-  for (const q of tsQuestions) {
-    await prisma.quizQuestion.create({
-      data: {
-        quizId: tsQuiz.id,
-        question: q.question,
-        options: q.options,
-        correct_option: q.correct_option,
-        explanation: q.explanation,
-        difficulty: q.difficulty
+  await prisma.quizQuestion.createMany({
+    data: [
+      {
+        quizId: tsBaselineQuiz.id,
+        questionText: "What is the key difference between `unknown` and `any` in TypeScript?",
+        options: JSON.stringify([
+          "They are exact synonyms with identical compiler behavior",
+          "`unknown` is type-safe: you cannot access properties or invoke it without first performing type narrowing",
+          "`any` only permits primitive boolean and numeric values",
+          "`unknown` can only be imported from external Node.js modules"
+        ]),
+        correctAnswer: 1,
+        explanation: "`unknown` is the type-safe counterpart of `any`. Anything is assignable to `unknown`, but TypeScript disallows calling methods or accessing properties on an `unknown` variable until you narrow the type using `typeof`, `instanceof`, or custom type guards.",
+        difficulty: "intermediate"
+      },
+      {
+        quizId: tsBaselineQuiz.id,
+        questionText: "Which TypeScript utility type creates a new type by selecting a specific subset of properties from type T?",
+        options: JSON.stringify([
+          "Omit<T, K>",
+          "Extract<T, U>",
+          "Pick<T, K>",
+          "Exclude<T, U>"
+        ]),
+        correctAnswer: 2,
+        explanation: "`Pick<T, K>` constructs a type by picking the set of properties `K` (keys) from type `T`.",
+        difficulty: "foundational"
       }
-    });
-  }
-
-  // SQL Baseline Quiz
-  const sqlQuiz = await prisma.quiz.create({
-    data: {
-      title: "SQL & Relational DBs Baseline Quiz",
-      description: "Assess fundamental SQL skills including SELECT, GROUP BY, HAVING, and JOIN semantics.",
-      trackId: dataAnalystTrack.id,
-      skillId: createdSkills["sql-relational-dbs"].id,
-      isBaseline: true,
-      timeLimitMinutes: 10
-    }
+    ]
   });
 
-  const sqlQuestions = [
-    {
-      question: "What is the key difference between WHERE and HAVING clauses in SQL?",
-      options: JSON.stringify([
-        "HAVING filters rows before aggregation, while WHERE filters after aggregation",
-        "WHERE filters rows before aggregation, while HAVING filters grouped results after aggregation",
-        "WHERE can only be used with primary keys",
-        "HAVING is only valid in NoSQL databases"
-      ]),
-      correct_option: 1,
-      explanation: "The WHERE clause filters individual rows prior to GROUP BY aggregation, whereas the HAVING clause filters the aggregated metric results after grouping.",
-      difficulty: "foundational"
-    },
-    {
-      question: "Which JOIN returns all rows from the left table and matched rows from the right table?",
-      options: JSON.stringify([
-        "INNER JOIN",
-        "RIGHT JOIN",
-        "LEFT JOIN (or LEFT OUTER JOIN)",
-        "CROSS JOIN"
-      ]),
-      correct_option: 2,
-      explanation: "LEFT JOIN preserves every record from the left table; if no match exists in the right table, NULL values are populated for the right table's columns.",
-      difficulty: "foundational"
-    }
-  ];
-
-  for (const q of sqlQuestions) {
-    await prisma.quizQuestion.create({
-      data: {
-        quizId: sqlQuiz.id,
-        question: q.question,
-        options: q.options,
-        correct_option: q.correct_option,
-        explanation: q.explanation,
-        difficulty: q.difficulty
-      }
-    });
-  }
-
-  // 7. Seed Demo Accounts
-  // Learner 1: Active in Frontend Track with initial self-ratings
-  const demoLearner = await prisma.user.create({
+  // 7. Seed Production Demo Users
+  // Admin User
+  const adminUser = await prisma.user.create({
     data: {
-      email: "learner@skillsetu.ai",
+      email: "admin@skillsetu.dev",
       password: hashedPassword,
-      name: "Aaditya Sharma",
-      role: "learner",
+      name: "Dr. Sarah Chen",
+      role: "ADMIN",
+      avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+      hasOnboarded: true
+    }
+  });
+
+  // Learner 1 (Full Stack Web Track, has notable skill gaps)
+  const learnerAarav = await prisma.user.create({
+    data: {
+      email: "aarav.learner@skillsetu.dev",
+      password: hashedPassword,
+      name: "Aarav Sharma",
+      role: "LEARNER",
       avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
       targetTrackId: frontendTrack.id,
       hasOnboarded: true
     }
   });
 
-  // Create SkillProfile for learner (demonstrating gaps)
-  // React: Level 2 (Required: 4, Gap: 2 - Foundational)
-  await prisma.skillProfile.create({
+  // Learner 2 (AI Track, high proficiency)
+  const learnerDiya = await prisma.user.create({
     data: {
-      userId: demoLearner.id,
-      skillId: createdSkills["react-js"].id,
-      level: 2,
-      source: "self-rated"
+      email: "diya.learner@skillsetu.dev",
+      password: hashedPassword,
+      name: "Diya Verma",
+      role: "LEARNER",
+      avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80",
+      targetTrackId: aiDataTrack.id,
+      hasOnboarded: true
     }
   });
 
-  // TypeScript: Level 1 (Required: 4, Gap: 3 - Foundational)
-  await prisma.skillProfile.create({
+  // Learner 3 (DevOps Track, beginner)
+  const learnerRohan = await prisma.user.create({
     data: {
-      userId: demoLearner.id,
-      skillId: createdSkills["typescript"].id,
-      level: 1,
-      source: "self-rated"
+      email: "rohan.learner@skillsetu.dev",
+      password: hashedPassword,
+      name: "Rohan Patel",
+      role: "LEARNER",
+      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      targetTrackId: cloudDevOpsTrack.id,
+      hasOnboarded: true
     }
   });
 
-  // Tailwind: Level 3 (Required: 3, Gap: 0 - Met)
-  await prisma.skillProfile.create({
-    data: {
-      userId: demoLearner.id,
-      skillId: createdSkills["tailwind-css"].id,
-      level: 3,
-      source: "quiz"
-    }
+  // 8. Seed Learner Skill Levels (demonstrating realistic gap profiles)
+  // Aarav: React = 2 (Req 4, Gap 2), TS = 1 (Req 4, Gap 3), Tailwind = 3 (Met), Node = 2 (Req 4, Gap 2), Postgres = 1 (Req 4, Gap 3)
+  await prisma.learnerSkillLevel.createMany({
+    data: [
+      { learnerId: learnerAarav.id, skillId: skillMap["react-nextjs"].id, currentLevel: 2, source: "assessment" },
+      { learnerId: learnerAarav.id, skillId: skillMap["typescript"].id, currentLevel: 1, source: "self-rated" },
+      { learnerId: learnerAarav.id, skillId: skillMap["tailwind-ui"].id, currentLevel: 3, source: "assessment" },
+      { learnerId: learnerAarav.id, skillId: skillMap["nodejs-express"].id, currentLevel: 2, source: "self-rated" },
+      { learnerId: learnerAarav.id, skillId: skillMap["postgres-prisma"].id, currentLevel: 1, source: "self-rated" }
+    ]
   });
 
-  // State Management: Level 2 (Required: 3, Gap: 1 - Foundational)
-  await prisma.skillProfile.create({
-    data: {
-      userId: demoLearner.id,
-      skillId: createdSkills["state-management"].id,
-      level: 2,
-      source: "self-rated"
-    }
+  // Diya: Python = 4 (Req 5, Gap 1), SQL = 4 (Met), ML = 3 (Req 4, Gap 1), GenAI = 3 (Req 4, Gap 1), DataViz = 3 (Met)
+  await prisma.learnerSkillLevel.createMany({
+    data: [
+      { learnerId: learnerDiya.id, skillId: skillMap["python-data"].id, currentLevel: 4, source: "assessment" },
+      { learnerId: learnerDiya.id, skillId: skillMap["sql-analytics"].id, currentLevel: 4, source: "assessment" },
+      { learnerId: learnerDiya.id, skillId: skillMap["machine-learning"].id, currentLevel: 3, source: "self-rated" },
+      { learnerId: learnerDiya.id, skillId: skillMap["generative-ai"].id, currentLevel: 3, source: "self-rated" },
+      { learnerId: learnerDiya.id, skillId: skillMap["data-viz"].id, currentLevel: 3, source: "self-rated" }
+    ]
   });
 
-  // Web Performance: Level 1 (Required: 3, Gap: 2 - Foundational)
-  await prisma.skillProfile.create({
+  // 9. Seed Quiz Attempts
+  const aaravAttempt = await prisma.quizAttempt.create({
     data: {
-      userId: demoLearner.id,
-      skillId: createdSkills["web-performance"].id,
-      level: 1,
-      source: "self-rated"
-    }
-  });
-
-  // Create a past QuizAttempt for learner
-  await prisma.quizAttempt.create({
-    data: {
-      userId: demoLearner.id,
-      quizId: reactQuiz.id,
+      learnerId: learnerAarav.id,
+      quizId: reactBaselineQuiz.id,
       score: 3,
       totalQuestions: 4,
       percentage: 75.0,
       passed: true,
-      answersJson: JSON.stringify([
-        { questionId: "1", selectedOption: 1, isCorrect: true, explanation: "Correctly recognized Virtual DOM diffing." },
-        { questionId: "2", selectedOption: 2, isCorrect: true, explanation: "Correctly identified useEffect for side-effects." },
-        { questionId: "3", selectedOption: 1, isCorrect: true, explanation: "Correctly understood immutability requirements." },
-        { questionId: "4", selectedOption: 0, isCorrect: false, explanation: "Confused useMemo with useCallback." }
-      ])
+      answers: JSON.stringify([
+        { questionId: "q1", selectedOption: 1, isCorrect: true, explanation: "Correctly answered Virtual DOM diffing." },
+        { questionId: "q2", selectedOption: 1, isCorrect: true, explanation: "Understands immutability and shallow equality." },
+        { questionId: "q3", selectedOption: 1, isCorrect: true, explanation: "Correctly identified callback memoization." },
+        { questionId: "q4", selectedOption: 1, isCorrect: false, explanation: "Missed React Server Component zero-bundle advantage." }
+      ]),
+      attemptedAt: new Date(Date.now() - 86400000 * 2) // 2 days ago
     }
   });
 
-  // Admin Account
-  const demoAdmin = await prisma.user.create({
+  // 10. Seed Initial Learning Path for Aarav
+  await prisma.learningPath.create({
     data: {
-      email: "admin@skillsetu.ai",
-      password: hashedPassword,
-      name: "Dr. Sunita Rao (Director)",
-      role: "admin",
-      avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
-      hasOnboarded: true
+      learnerId: learnerAarav.id,
+      orderedSequence: JSON.stringify([
+        { step: 1, courseId: c1_react_found.id, title: c1_react_found.title, skill: "React & Next.js", difficulty: "FOUNDATIONAL" },
+        { step: 2, courseId: c1_ts_found.id, title: c1_ts_found.title, skill: "TypeScript", difficulty: "FOUNDATIONAL" },
+        { step: 3, courseId: c2_react_inter.id, title: c2_react_inter.title, skill: "React & Next.js", difficulty: "INTERMEDIATE" },
+        { step: 4, courseId: c2_ts_inter.id, title: c2_ts_inter.title, skill: "TypeScript", difficulty: "INTERMEDIATE" },
+        { step: 5, courseId: c1_node_found.id, title: c1_node_found.title, skill: "Node.js & Express API", difficulty: "FOUNDATIONAL" },
+        { step: 6, courseId: c1_db_found.id, title: c1_db_found.title, skill: "PostgreSQL & Prisma ORM", difficulty: "FOUNDATIONAL" },
+        { step: 7, courseId: c3_react_adv.id, title: c3_react_adv.title, skill: "React & Next.js", difficulty: "ADVANCED" }
+      ]),
+      generatedAt: new Date(Date.now() - 86400000 * 2)
     }
   });
 
-  // Learner 2: Data Analyst
-  const demoAnalyst = await prisma.user.create({
-    data: {
-      email: "analyst@skillsetu.ai",
-      password: hashedPassword,
-      name: "Rohan Patel",
-      role: "learner",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-      targetTrackId: dataAnalystTrack.id,
-      hasOnboarded: true
+  // 11. Seed Rich Activity Logs (powers Admin Logs view with real filters)
+  const initialLogs = [
+    {
+      actorId: adminUser.id,
+      actionType: "AUTH_LOGIN",
+      metadata: JSON.stringify({ ip: "127.0.0.1", userAgent: "AdminPortal/Chrome", role: "ADMIN" }),
+      timestamp: new Date(Date.now() - 86400000 * 3)
+    },
+    {
+      actorId: learnerAarav.id,
+      actionType: "AUTH_REGISTER",
+      metadata: JSON.stringify({ email: learnerAarav.email, track: "Full Stack Web Engineering" }),
+      timestamp: new Date(Date.now() - 86400000 * 3)
+    },
+    {
+      actorId: learnerAarav.id,
+      actionType: "TRACK_SELECTED",
+      metadata: JSON.stringify({ trackId: frontendTrack.id, trackName: frontendTrack.name }),
+      timestamp: new Date(Date.now() - 86400000 * 3)
+    },
+    {
+      actorId: learnerAarav.id,
+      actionType: "SKILL_SELF_RATED",
+      metadata: JSON.stringify({ skill: "TypeScript", initialLevel: 1, requiredLevel: 4, gap: 3 }),
+      timestamp: new Date(Date.now() - 86400000 * 2.5)
+    },
+    {
+      actorId: learnerAarav.id,
+      actionType: "QUIZ_ATTEMPTED",
+      metadata: JSON.stringify({
+        quizId: reactBaselineQuiz.id,
+        quizTitle: reactBaselineQuiz.title,
+        score: 3,
+        totalQuestions: 4,
+        percentage: 75.0,
+        passed: true
+      }),
+      timestamp: new Date(Date.now() - 86400000 * 2)
+    },
+    {
+      actorId: learnerAarav.id,
+      actionType: "SCORE_CHANGED",
+      metadata: JSON.stringify({
+        skillName: "React & Next.js",
+        oldLevel: 1,
+        newLevel: 2,
+        trigger: "Quiz Passed (React Core Baseline)"
+      }),
+      timestamp: new Date(Date.now() - 86400000 * 2)
+    },
+    {
+      actorId: learnerAarav.id,
+      actionType: "RECOMMENDATION_RECALCULATED",
+      metadata: JSON.stringify({
+        trackName: frontendTrack.name,
+        orderedStepsCount: 7,
+        priorityGap: "TypeScript (Gap: 3)"
+      }),
+      timestamp: new Date(Date.now() - 86400000 * 2)
+    },
+    {
+      actorId: learnerDiya.id,
+      actionType: "AUTH_REGISTER",
+      metadata: JSON.stringify({ email: learnerDiya.email, track: "Data Science & AI Engineering" }),
+      timestamp: new Date(Date.now() - 86400000 * 1.5)
+    },
+    {
+      actorId: learnerDiya.id,
+      actionType: "UPLOAD_PROCESSED",
+      metadata: JSON.stringify({
+        fileName: "transformer_attention_mechanisms.pdf",
+        fileType: "application/pdf",
+        extractedLength: 4280,
+        ocrUsed: false
+      }),
+      timestamp: new Date(Date.now() - 86400000 * 1)
+    },
+    {
+      actorId: learnerDiya.id,
+      actionType: "QUIZ_GENERATED",
+      metadata: JSON.stringify({
+        source: "transformer_attention_mechanisms.pdf",
+        questionsCount: 5,
+        targetSkill: "Generative AI & LLM Systems",
+        aiProvider: "Google Gemini API"
+      }),
+      timestamp: new Date(Date.now() - 86400000 * 1)
     }
-  });
+  ];
 
-  await prisma.skillProfile.create({
-    data: {
-      userId: demoAnalyst.id,
-      skillId: createdSkills["sql-relational-dbs"].id,
-      level: 3,
-      source: "quiz"
-    }
-  });
-  await prisma.skillProfile.create({
-    data: {
-      userId: demoAnalyst.id,
-      skillId: createdSkills["python-data"].id,
-      level: 2,
-      source: "self-rated"
-    }
-  });
+  for (const log of initialLogs) {
+    await prisma.activityLog.create({ data: log });
+  }
 
-  console.log("✅ Skill Setu Seed Completed Successfully!");
-  console.log("👤 Demo Accounts Created:");
-  console.log("   - Learner: learner@skillsetu.ai / Password123!");
-  console.log("   - Admin:   admin@skillsetu.ai / Password123!");
-  console.log("   - Analyst: analyst@skillsetu.ai / Password123!");
+  console.log("✅ Skill Setu Normalized Database Seed Completed!");
+  console.log("--------------------------------------------------");
+  console.log("🔐 Credentials for instant testing:");
+  console.log("   Admin Portal:   admin@skillsetu.dev   / Password123!");
+  console.log("   Learner Portal: aarav.learner@skillsetu.dev / Password123!");
+  console.log("   AI Learner:     diya.learner@skillsetu.dev  / Password123!");
+  console.log("--------------------------------------------------");
 }
 
 main()

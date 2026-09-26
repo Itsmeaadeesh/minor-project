@@ -16,9 +16,8 @@ export interface GapAnalysisResult {
 }
 
 /**
- * Compares learner's SkillProfile against TrackRequirement models.
- * Returns ranked list of gaps (requiredLevel - currentLevel descending),
- * tagged as foundational / intermediate / advanced.
+ * Compares learner's LearnerSkillLevel against TrackSkill requirements.
+ * Ranks gaps by priority: largest deficit first, with prerequisite skills weighted higher.
  */
 export async function calculateUserSkillGaps(
   userId: string,
@@ -27,7 +26,7 @@ export async function calculateUserSkillGaps(
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: {
-      skillProfiles: {
+      skillLevels: {
         include: { skill: true }
       }
     }
@@ -44,7 +43,7 @@ export async function calculateUserSkillGaps(
     track = await prisma.track.findUnique({
       where: { id: trackId },
       include: {
-        requirements: {
+        trackSkills: {
           include: { skill: true }
         }
       }
@@ -55,7 +54,7 @@ export async function calculateUserSkillGaps(
   if (!track) {
     track = await prisma.track.findFirst({
       include: {
-        requirements: {
+        trackSkills: {
           include: { skill: true }
         }
       }
@@ -66,17 +65,45 @@ export async function calculateUserSkillGaps(
     throw new Error("No learning tracks found in system.");
   }
 
-  const profileMap = new Map<string, { level: number; source: string }>();
-  user.skillProfiles.forEach((sp) => {
-    profileMap.set(sp.skillId, { level: sp.level, source: sp.source });
+  // Fetch courses with prerequisite relations to identify prerequisite skills
+  const coursesWithPrereqs = await prisma.course.findMany({
+    where: { trackId: track.id },
+    select: {
+      id: true,
+      taggedSkillId: true,
+      prerequisiteCourseId: true,
+      difficultyLevel: true
+    }
   });
 
-  const gapItems: SkillGapItem[] = track.requirements.map((req) => {
-    const profile = profileMap.get(req.skillId);
-    const currentLevel = profile ? profile.level : 1;
-    const source = profile ? profile.source : "unassessed";
-    const requiredLevel = req.requiredLevel;
-    const gap = Math.max(0, requiredLevel - currentLevel);
+  // Build a set of skills that act as prerequisites for other courses
+  const prerequisiteCourseIds = new Set(
+    coursesWithPrereqs.map((c) => c.prerequisiteCourseId).filter(Boolean) as string[]
+  );
+  const prerequisiteSkillIds = new Set<string>();
+  coursesWithPrereqs.forEach((c) => {
+    if (prerequisiteCourseIds.has(c.id)) {
+      prerequisiteSkillIds.add(c.taggedSkillId);
+    }
+  });
+
+  const levelMap = new Map<string, { level: number; source: string }>();
+  user.skillLevels.forEach((sl) => {
+    levelMap.set(sl.skillId, { level: sl.currentLevel, source: sl.source });
+  });
+
+  const gapItems: SkillGapItem[] = track.trackSkills.map((ts) => {
+    const levelInfo = levelMap.get(ts.skillId);
+    const currentLevel = levelInfo ? levelInfo.level : 1;
+    const source = levelInfo ? levelInfo.source : "unassessed";
+    const requiredLevel = ts.requiredProficiencyLevel;
+    const deficit = Math.max(0, requiredLevel - currentLevel);
+
+    // Prerequisite weighting: foundational skills that unlock downstream courses get a 1.5x multiplier
+    const isPrerequisite = prerequisiteSkillIds.has(ts.skillId);
+    const priorityWeight = Number(
+      (deficit * 2 + (isPrerequisite ? 2.5 : 0) + (currentLevel <= 2 ? 1.0 : 0.5)).toFixed(1)
+    );
 
     let tag: "foundational" | "intermediate" | "advanced";
     if (currentLevel <= 2) {
@@ -88,27 +115,28 @@ export async function calculateUserSkillGaps(
     }
 
     return {
-      skillId: req.skillId,
-      skillName: req.skill.name,
-      category: req.skill.category,
-      icon: req.skill.icon,
+      skillId: ts.skillId,
+      skillName: ts.skill.name,
+      category: ts.skill.category,
+      icon: ts.skill.icon,
       currentLevel,
       requiredLevel,
-      gap,
+      gap: deficit,
+      priorityWeight,
       tag,
       source,
       isMet: currentLevel >= requiredLevel
     };
   });
 
-  // Rank by gap (descending) so highest deficiencies appear first
-  gapItems.sort((a, b) => b.gap - a.gap || a.currentLevel - b.currentLevel);
+  // Rank gaps by priority: priorityWeight descending, then largest deficit descending
+  gapItems.sort((a, b) => b.priorityWeight - a.priorityWeight || b.gap - a.gap || a.currentLevel - b.currentLevel);
 
   const totalSkills = gapItems.length;
   const skillsMastered = gapItems.filter((g) => g.isMet).length;
   const unmetGaps = gapItems.filter((g) => !g.isMet);
 
-  // Compute overall percentage readiness toward target track
+  // Compute readiness percentage toward target track
   const totalRequiredPoints = gapItems.reduce((acc, g) => acc + g.requiredLevel, 0);
   const totalAcquiredPoints = gapItems.reduce((acc, g) => acc + Math.min(g.currentLevel, g.requiredLevel), 0);
   const readinessPercentage =

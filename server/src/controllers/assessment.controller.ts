@@ -2,6 +2,8 @@ import { Response } from "express";
 import prisma from "../prisma.js";
 import { AuthRequest } from "../types/index.js";
 import { calculateUserSkillGaps } from "../services/gapAnalysis.service.js";
+import { generateLearningPath } from "../services/recommendation.service.js";
+import { logActivity } from "../services/activityLog.service.js";
 
 export async function submitSelfRatings(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -17,26 +19,26 @@ export async function submitSelfRatings(req: AuthRequest, res: Response): Promis
       return;
     }
 
-    // Upsert each skill rating in SkillProfile
+    // Upsert each skill rating in LearnerSkillLevel
     const updatedProfiles = [];
     for (const item of ratings) {
       const clampedLevel = Math.max(1, Math.min(5, Math.round(item.level)));
-      const profile = await prisma.skillProfile.upsert({
+      const profile = await prisma.learnerSkillLevel.upsert({
         where: {
-          userId_skillId: {
-            userId: req.user.id,
+          learnerId_skillId: {
+            learnerId: req.user.id,
             skillId: item.skillId
           }
         },
         update: {
-          level: clampedLevel,
+          currentLevel: clampedLevel,
           source: "self-rated",
-          lastAssessedAt: new Date()
+          lastUpdated: new Date()
         },
         create: {
-          userId: req.user.id,
+          learnerId: req.user.id,
           skillId: item.skillId,
-          level: clampedLevel,
+          currentLevel: clampedLevel,
           source: "self-rated"
         },
         include: { skill: true }
@@ -44,13 +46,23 @@ export async function submitSelfRatings(req: AuthRequest, res: Response): Promis
       updatedProfiles.push(profile);
     }
 
+    // Log Activity for self-rating
+    await logActivity(req.user.id, "SKILL_SELF_RATED", {
+      skillsCount: updatedProfiles.length,
+      ratings: updatedProfiles.map((p) => ({ skill: p.skill.name, level: p.currentLevel }))
+    });
+
     // Recompute gaps dynamically
     const freshGaps = await calculateUserSkillGaps(req.user.id);
+
+    // Auto-recalculate learning path
+    const freshPath = await generateLearningPath(req.user.id);
 
     res.json({
       message: "Skill profile updated successfully via self-assessment.",
       updatedProfiles,
-      freshGaps
+      freshGaps,
+      freshPath
     });
   } catch (err: any) {
     console.error("Failed to submit self-ratings:", err);
@@ -65,10 +77,10 @@ export async function getMySkillProfiles(req: AuthRequest, res: Response): Promi
       return;
     }
 
-    const profiles = await prisma.skillProfile.findMany({
-      where: { userId: req.user.id },
+    const profiles = await prisma.learnerSkillLevel.findMany({
+      where: { learnerId: req.user.id },
       include: { skill: true },
-      orderBy: { updatedAt: "desc" }
+      orderBy: { lastUpdated: "desc" }
     });
 
     res.json(profiles);

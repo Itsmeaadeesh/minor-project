@@ -1,10 +1,21 @@
 import { Router } from "express";
-import { getAdminAnalytics } from "../controllers/admin.controller.js";
+import {
+  getAdminAnalytics,
+  listAdminLearners,
+  getLearnerDrilldown,
+  listActivityLogs
+} from "../controllers/admin.controller.js";
 import { authenticate, requireRole } from "../middleware/auth.middleware.js";
 
 const router = Router();
 
-// Only admin users can access the administrative aggregation endpoints
-router.get("/analytics", authenticate, requireRole("admin"), getAdminAnalytics);
+// Strict Server-Side RBAC Guard: All endpoints in /api/admin/* require ADMIN role
+router.use(authenticate);
+router.use(requireRole("ADMIN"));
+
+router.get("/analytics", getAdminAnalytics);
+router.get("/learners", listAdminLearners);
+router.get("/learners/:id", getLearnerDrilldown);
+router.get("/logs", listActivityLogs);
 
 export default router;

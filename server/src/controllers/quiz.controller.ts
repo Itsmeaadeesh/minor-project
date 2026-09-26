@@ -7,6 +7,7 @@ import { extractTextFromFile } from "../services/document.service.js";
 import { generateQuizFromText } from "../services/ai.service.js";
 import { calculateUserSkillGaps } from "../services/gapAnalysis.service.js";
 import { generateLearningPath } from "../services/recommendation.service.js";
+import { logActivity } from "../services/activityLog.service.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
@@ -21,8 +22,8 @@ if (SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_URL.includes("[PROJECT-REF]")
 }
 
 /**
- * Upload study material (PDF/PPT/DOCX), run OCR if needed, call Gemini API,
- * validate JSON, and store Quiz + QuizQuestions.
+ * Upload study material (PDF/PPT/DOCX), parse text, call Gemini API,
+ * validate JSON, persist to uploads, quizzes, quiz_questions, and write to activity_logs.
  */
 export async function generateQuizFromUpload(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -33,6 +34,7 @@ export async function generateQuizFromUpload(req: AuthRequest, res: Response): P
 
     const { skillId, trackId, title, numQuestions = 5 } = req.body;
     const file = req.file;
+    const learnerId = req.user?.id || (await prisma.user.findFirst())?.id || "anonymous-user";
 
     // 1. Resolve Skill & Track
     let skill = null;
@@ -49,7 +51,7 @@ export async function generateQuizFromUpload(req: AuthRequest, res: Response): P
       track = await prisma.track.findUnique({ where: { id: trackId } });
     }
 
-    // 2. Upload to Supabase Storage if configured, or record local path
+    // 2. Upload to Supabase Storage if configured, or fallback to local path
     let fileStorageUrl = `/uploads/${file.filename}`;
     if (supabase) {
       try {
@@ -80,7 +82,30 @@ export async function generateQuizFromUpload(req: AuthRequest, res: Response): P
       file.originalname
     );
 
-    // 4. Generate MCQs using Google Gemini API with strict JSON validation and retry
+    // 4. Save to uploads table
+    const uploadRecord = await prisma.upload.create({
+      data: {
+        learnerId,
+        fileUrl: fileStorageUrl,
+        fileName: file.originalname,
+        fileType: file.mimetype || file.originalname.split(".").pop() || "unknown",
+        fileSize: file.size || 0,
+        extractedText: text.slice(0, 5000),
+        uploadedAt: new Date()
+      }
+    });
+
+    // Log Activity: UPLOAD_PROCESSED
+    await logActivity(learnerId, "UPLOAD_PROCESSED", {
+      uploadId: uploadRecord.id,
+      fileName: file.originalname,
+      fileType: file.mimetype,
+      fileSize: file.size,
+      ocrUsed: isScannedPdf,
+      extractedLength: text.length
+    });
+
+    // 5. Generate MCQs using Google Gemini API
     const questionsCount = Math.max(3, Math.min(10, Number(numQuestions) || 5));
     const generatedMCQs = await generateQuizFromText(
       text,
@@ -89,7 +114,7 @@ export async function generateQuizFromUpload(req: AuthRequest, res: Response): P
       questionsCount
     );
 
-    // 5. Persist Quiz and Questions in Prisma
+    // 6. Persist Quiz and Questions in Prisma
     const quizTitle =
       title || `${skillName} AI Assessment: ${file.originalname.replace(/\.[^/.]+$/, "")}`;
 
@@ -97,13 +122,12 @@ export async function generateQuizFromUpload(req: AuthRequest, res: Response): P
       data: {
         title: quizTitle,
         description: `AI-generated assessment derived from ${file.originalname}${
-          isScannedPdf ? " (analyzed via Tesseract OCR)" : ""
+          isScannedPdf ? " (analyzed via OCR)" : ""
         }.`,
         skillId: skill?.id || null,
         trackId: track?.id || null,
-        sourceFileUrl: fileStorageUrl,
-        sourceFilename: file.originalname,
-        sourceText: text.slice(0, 3000),
+        uploadId: uploadRecord.id,
+        generatedFrom: "upload",
         isBaseline: false,
         createdById: req.user?.id || null,
         timeLimitMinutes: Math.max(5, questionsCount * 2)
@@ -115,14 +139,24 @@ export async function generateQuizFromUpload(req: AuthRequest, res: Response): P
       await prisma.quizQuestion.create({
         data: {
           quizId: quiz.id,
-          question: q.question,
+          questionText: q.question,
           options: JSON.stringify(q.options),
-          correct_option: q.correct_option,
+          correctAnswer: q.correct_option,
           explanation: q.explanation,
           difficulty: q.difficulty || "intermediate"
         }
       });
     }
+
+    // Log Activity: QUIZ_GENERATED
+    await logActivity(learnerId, "QUIZ_GENERATED", {
+      quizId: quiz.id,
+      quizTitle: quiz.title,
+      questionsCount: generatedMCQs.length,
+      skillName,
+      sourceFileName: file.originalname,
+      aiProvider: process.env.GEMINI_API_KEY ? "Google Gemini API" : "Smart Fallback Engine"
+    });
 
     // Retrieve populated quiz
     const fullQuiz = await prisma.quiz.findUnique({
@@ -204,10 +238,10 @@ export async function getQuizById(req: AuthRequest, res: Response): Promise<void
       }
 
       if (mode === "take") {
-        // Hide answer keys during examination
+        // Obfuscate correct answer during live quiz taking
         return {
           id: q.id,
-          question: q.question,
+          question: q.questionText,
           options: optionsArray,
           difficulty: q.difficulty
         };
@@ -215,9 +249,9 @@ export async function getQuizById(req: AuthRequest, res: Response): Promise<void
 
       return {
         id: q.id,
-        question: q.question,
+        question: q.questionText,
         options: optionsArray,
-        correct_option: q.correct_option,
+        correct_option: q.correctAnswer,
         explanation: q.explanation,
         difficulty: q.difficulty
       };
@@ -234,7 +268,7 @@ export async function getQuizById(req: AuthRequest, res: Response): Promise<void
 
 /**
  * Instant scoring of submitted quiz answers, persists QuizAttempt,
- * and recalculates SkillProfile proficiency level.
+ * updates LearnerSkillLevel, recalculates LearningPath, and writes to ActivityLog.
  */
 export async function submitQuizAttempt(req: AuthRequest, res: Response): Promise<void> {
   try {
@@ -273,7 +307,7 @@ export async function submitQuizAttempt(req: AuthRequest, res: Response): Promis
       }
 
       const selectedOption = answers ? answers[q.id] : undefined;
-      const isCorrect = selectedOption === q.correct_option;
+      const isCorrect = selectedOption === q.correctAnswer;
 
       if (isCorrect) {
         rawScore++;
@@ -281,10 +315,10 @@ export async function submitQuizAttempt(req: AuthRequest, res: Response): Promis
 
       reviewBreakdown.push({
         questionId: q.id,
-        question: q.question,
+        question: q.questionText,
         options: optionsArray,
         selectedOption: selectedOption !== undefined ? selectedOption : null,
-        correctOption: q.correct_option,
+        correctOption: q.correctAnswer,
         isCorrect,
         explanation: q.explanation,
         difficulty: q.difficulty
@@ -297,17 +331,29 @@ export async function submitQuizAttempt(req: AuthRequest, res: Response): Promis
     // 1. Store QuizAttempt
     const attempt = await prisma.quizAttempt.create({
       data: {
-        userId: req.user.id,
+        learnerId: req.user.id,
         quizId: quiz.id,
         score: rawScore,
         totalQuestions,
         percentage,
         passed,
-        answersJson: JSON.stringify(reviewBreakdown)
+        answers: JSON.stringify(reviewBreakdown),
+        attemptedAt: new Date()
       }
     });
 
-    // 2. Update Learner's SkillProfile Level for the tested skill
+    // Log Activity: QUIZ_ATTEMPTED
+    await logActivity(req.user.id, "QUIZ_ATTEMPTED", {
+      quizId: quiz.id,
+      quizTitle: quiz.title,
+      score: rawScore,
+      totalQuestions,
+      percentage,
+      passed,
+      skillName: quiz.skill?.name || "General"
+    });
+
+    // 2. Update Learner's LearnerSkillLevel for tested skill
     let updatedSkillLevel = null;
     if (quiz.skillId) {
       let derivedLevel = 1;
@@ -317,30 +363,51 @@ export async function submitQuizAttempt(req: AuthRequest, res: Response): Promis
       else if (percentage >= 40) derivedLevel = 2;
       else derivedLevel = 1;
 
-      // Upsert skill profile
-      const updatedProfile = await prisma.skillProfile.upsert({
+      // Existing level
+      const existing = await prisma.learnerSkillLevel.findUnique({
         where: {
-          userId_skillId: {
-            userId: req.user.id,
+          learnerId_skillId: {
+            learnerId: req.user.id,
+            skillId: quiz.skillId
+          }
+        }
+      });
+
+      const oldLevel = existing?.currentLevel || 1;
+      const newLevel = Math.max(oldLevel, derivedLevel);
+
+      const updated = await prisma.learnerSkillLevel.upsert({
+        where: {
+          learnerId_skillId: {
+            learnerId: req.user.id,
             skillId: quiz.skillId
           }
         },
         update: {
-          // Advance level if higher or update with quiz source
-          level: derivedLevel,
+          currentLevel: newLevel,
           source: "quiz",
-          lastAssessedAt: new Date()
+          lastUpdated: new Date()
         },
         create: {
-          userId: req.user.id,
+          learnerId: req.user.id,
           skillId: quiz.skillId,
-          level: derivedLevel,
+          currentLevel: derivedLevel,
           source: "quiz"
         },
         include: { skill: true }
       });
 
-      updatedSkillLevel = updatedProfile;
+      updatedSkillLevel = updated;
+
+      // Log Activity: SCORE_CHANGED
+      if (newLevel !== oldLevel) {
+        await logActivity(req.user.id, "SCORE_CHANGED", {
+          skillName: quiz.skill?.name || "Skill",
+          oldLevel,
+          newLevel,
+          trigger: `Quiz Passed: ${quiz.title} (${percentage}%)`
+        });
+      }
     }
 
     // 3. Dynamic Progress Recalculation (Gaps + Recommendations)
@@ -373,13 +440,13 @@ export async function getMyAttempts(req: AuthRequest, res: Response): Promise<vo
     }
 
     const attempts = await prisma.quizAttempt.findMany({
-      where: { userId: req.user.id },
+      where: { learnerId: req.user.id },
       include: {
         quiz: {
           include: { skill: true, track: true }
         }
       },
-      orderBy: { timestamp: "desc" }
+      orderBy: { attemptedAt: "desc" }
     });
 
     res.json(attempts);

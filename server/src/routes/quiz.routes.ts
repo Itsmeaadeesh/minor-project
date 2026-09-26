@@ -50,6 +50,6 @@ router.get("/", listQuizzes);
 router.get("/my-attempts", authenticate, getMyAttempts);
 router.get("/:id", authenticate, getQuizById);
 router.post("/:id/attempt", authenticate, submitQuizAttempt);
-router.delete("/:id", authenticate, requireRole("admin"), deleteQuiz);
+router.delete("/:id", authenticate, requireRole("ADMIN"), deleteQuiz);
 
 export default router;
